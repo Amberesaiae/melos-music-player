@@ -7,6 +7,12 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application>
+        <activity
+            android:name=".ui.DownloadsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Melos">
+        </activity>
+
         <service
             android:name=".service.DownloadService"
             android:enabled="true"
