@@ -40,8 +40,9 @@ include(":feature:playlists")
 include(":feature:search")
 include(":feature:server")
 include(":feature:settings")
+include(":feature:authentication")
 include(":feature:downloads-ui")
 
 // Platform modules
-include(":platform:android-auto")
+include(":platform:auto-android")
 include(":platform:notifications")
