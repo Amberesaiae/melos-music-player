@@ -46,6 +46,7 @@ sealed class MelosRoute(val route: String) {
     data object ServerSetup : MelosRoute("server_setup")
     data object Settings : MelosRoute("settings")
     data object AndroidAuto : MelosRoute("android_auto")
+    data object Authentication : MelosRoute("authentication")
 }
 
 /**
@@ -72,12 +73,6 @@ val bottomNavItems = listOf(
         unselectedIcon = Icons.Outlined.PlaylistPlay
     ),
     BottomNavItem(
-        route = MelosRoute.NowPlaying.route,
-        label = "Now Playing",
-        selectedIcon = Icons.Filled.PlaylistPlay,
-        unselectedIcon = Icons.Outlined.PlaylistPlay
-    ),
-    BottomNavItem(
         route = MelosRoute.Settings.route,
         label = "Settings",
         selectedIcon = Icons.Filled.Settings,
@@ -96,54 +91,43 @@ data class BottomNavItem(
 )
 
 /**
- * Main navigation graph for the Melos Music Player app.
- * 
- * @param navController The NavHostController managing navigation
- * @param startDestination The initial destination to display
- * @param modifier Optional modifier for the NavHost
+ * Main navigation host for the Melos Music Player app.
+ * Sets up the nav graph with all destinations and handles navigation between screens.
  */
 @Composable
-fun MelosNavGraph(
-    navController: NavHostController,
-    startDestination: String = MelosRoute.Library.route,
-    modifier: Modifier = Modifier
+fun MelosNavHost(
+    modifier: Modifier = Modifier,
+    navController: NavHostController = rememberNavController(),
+    startDestination: String = MelosRoute.Authentication.route,
+    onNavigateToAuthentication: () -> Unit = {}
 ) {
     NavHost(
         navController = navController,
         startDestination = startDestination,
         modifier = modifier,
-        enterTransition = { EnterTransition.Default },
-        exitTransition = { ExitTransition.Default }
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None }
     ) {
-        // Library - Home screen showing music library
+        // Authentication screen
+        composable(route = MelosRoute.Authentication.route) {
+            AuthenticationScreenWrapper(
+                onLoginSuccess = { username, serverType ->
+                    navController.navigate(MelosRoute.Library.route) {
+                        popUpTo(MelosRoute.Authentication.route) { inclusive = true }
+                    }
+                },
+                onNavigateToSettings = {
+                    navController.navigate(MelosRoute.Settings.route)
+                }
+            )
+        }
+
+        // Library screen
         composable(route = MelosRoute.Library.route) {
             LibraryScreenPlaceholder()
         }
-        
-        // Now Playing - Full screen player
-        composable(route = MelosRoute.NowPlaying.route) {
-            NowPlayingScreenPlaceholder()
-        }
-        
-        // Playlists - List of all playlists
-        composable(route = MelosRoute.Playlists.route) {
-            PlaylistsScreenPlaceholder()
-        }
-        
-        // Playlist Detail - Single playlist with ID parameter
-        composable(
-            route = MelosRoute.PlaylistDetail.route,
-            arguments = listOf(
-                navArgument("playlistId") {
-                    type = NavType.StringType
-                }
-            )
-        ) { backStackEntry ->
-            val playlistId = backStackEntry.arguments?.getString("playlistId")
-            PlaylistDetailScreenPlaceholder(playlistId = playlistId)
-        }
-        
-        // Search - Search screen with optional query parameter
+
+        // Search screen
         composable(
             route = MelosRoute.Search.route,
             arguments = listOf(
@@ -157,18 +141,41 @@ fun MelosNavGraph(
             val query = backStackEntry.arguments?.getString("query")
             SearchScreenPlaceholder(query = query)
         }
-        
-        // Server Setup - Subsonic server configuration
+
+        // Playlists screen
+        composable(route = MelosRoute.Playlists.route) {
+            PlaylistsScreenPlaceholder()
+        }
+
+        // Playlist detail screen
+        composable(
+            route = MelosRoute.PlaylistDetail.route,
+            arguments = listOf(
+                navArgument("playlistId") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val playlistId = backStackEntry.arguments?.getString("playlistId")
+            PlaylistDetailScreenPlaceholder(playlistId = playlistId ?: "")
+        }
+
+        // Now Playing screen
+        composable(route = MelosRoute.NowPlaying.route) {
+            NowPlayingScreenPlaceholder()
+        }
+
+        // Server Setup screen
         composable(route = MelosRoute.ServerSetup.route) {
             ServerSetupScreenPlaceholder()
         }
-        
-        // Settings - App settings
+
+        // Settings screen
         composable(route = MelosRoute.Settings.route) {
             SettingsScreenPlaceholder()
         }
-        
-        // Android Auto - Car app interface
+
+        // Android Auto screen
         composable(route = MelosRoute.AndroidAuto.route) {
             AndroidAutoScreenPlaceholder()
         }
@@ -176,164 +183,131 @@ fun MelosNavGraph(
 }
 
 /**
- * Bottom navigation component for the Melos Music Player.
+ * Wrapper composable for authentication screen.
+ * Integrates with feature:authentication module's LoginScreen.
  * 
- * @param navController The NavHostController for navigation
- * @param modifier Optional modifier for the NavigationBar
+ * To use actual implementation, uncomment imports and replace body with:
+ * import com.amberesaiae.melos.feature.authentication.ui.LoginScreen
+ * 
+ * LoginScreen(
+ *     onLoginSuccess = onLoginSuccess,
+ *     onNavigateToSettings = onNavigateToSettings
+ * )
  */
 @Composable
-fun MelosBottomNavigation(
-    navController: NavHostController,
-    modifier: Modifier = Modifier
+private fun AuthenticationScreenWrapper(
+    onLoginSuccess: (String, com.amberesaiae.melos.feature.authentication.domain.ServerType) -> Unit,
+    onNavigateToSettings: () -> Unit
 ) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
-    
-    // Hide bottom navigation on certain screens
-    val shouldShowBottomNav = currentRoute in bottomNavItems.map { it.route }
-    
-    if (shouldShowBottomNav) {
-        NavigationBar(modifier = modifier) {
-            bottomNavItems.forEach { item ->
-                NavigationBarItem(
-                    icon = {
-                        Icon(
-                            imageVector = if (currentRoute == item.route) {
-                                item.selectedIcon
-                            } else {
-                                item.unselectedIcon
-                            },
-                            contentDescription = item.label
-                        )
-                    },
-                    label = { Text(text = item.label) },
-                    selected = currentRoute == item.route,
-                    onClick = {
-                        navController.navigate(item.route) {
-                            // Pop up to the start destination of the graph to
-                            // avoid building up a large stack of destinations
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            // Avoid multiple copies of the same destination when
-                            // reselecting the same item
-                            launchSingleTop = true
-                            // Restore state when reselecting a previously selected item
-                            restoreState = true
-                        }
-                    }
-                )
-            }
+    // Placeholder - replace with actual LoginScreen from feature:authentication
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Authentication Screen",
+            style = MaterialTheme.typography.headlineMedium
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "From feature:authentication module",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = { 
+            onLoginSuccess("test_user", com.amberesaiae.melos.feature.authentication.domain.ServerType.SUBSONIC)
+        }) {
+            Text("Test Login (navigate to Library)")
         }
     }
 }
 
+@Composable
+private fun LibraryScreenPlaceholder() {
+    Text("Library Screen")
+}
+
+@Composable
+private fun SearchScreenPlaceholder(query: String?) {
+    Text("Search Screen - Query: $query")
+}
+
+@Composable
+private fun PlaylistsScreenPlaceholder() {
+    Text("Playlists Screen")
+}
+
+@Composable
+private fun PlaylistDetailScreenPlaceholder(playlistId: String) {
+    Text("Playlist Detail Screen - ID: $playlistId")
+}
+
+@Composable
+private fun NowPlayingScreenPlaceholder() {
+    Text("Now Playing Screen")
+}
+
+@Composable
+private fun ServerSetupScreenPlaceholder() {
+    Text("Server Setup Screen")
+}
+
+@Composable
+private fun SettingsScreenPlaceholder() {
+    Text("Settings Screen")
+}
+
+@Composable
+private fun AndroidAutoScreenPlaceholder() {
+    Text("Android Auto Screen")
+}
+
 /**
- * Main app scaffold with navigation and bottom bar integration.
- * 
- * @param navController The NavHostController for navigation
- * @param modifier Optional modifier for the Scaffold
+ * Main app scaffold with bottom navigation bar.
+ * Shows bottom navigation for authenticated users.
  */
 @Composable
 fun MelosAppScaffold(
-    navController: NavHostController = rememberNavController(),
-    modifier: Modifier = Modifier
+    navController: NavHostController = rememberNavController()
 ) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val showBottomBar = currentRoute in bottomNavItems.map { it.route }
+
     Scaffold(
-        modifier = modifier,
         bottomBar = {
-            MelosBottomNavigation(navController = navController)
+            if (showBottomBar) {
+                NavigationBar {
+                    bottomNavItems.forEach { item ->
+                        NavigationBarItem(
+                            icon = {
+                                Icon(
+                                    if (currentRoute == item.route) item.selectedIcon else item.unselectedIcon,
+                                    contentDescription = item.label
+                                )
+                            },
+                            label = { Text(item.label) },
+                            selected = currentRoute == item.route,
+                            onClick = {
+                                navController.navigate(item.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        )
+                    }
+                }
+            }
         }
     ) { innerPadding ->
-        MelosNavGraph(
-            navController = navController,
-            modifier = Modifier.padding(innerPadding)
+        MelosNavHost(
+            modifier = Modifier.padding(innerPadding),
+            navController = navController
         )
     }
-}
-
-// ============================================================================
-// Placeholder Composables - To be implemented in Phase 1-2
-// ============================================================================
-
-/**
- * Placeholder for Library screen - displays the music library.
- * To be implemented with actual library browsing functionality.
- */
-@Composable
-fun LibraryScreenPlaceholder() {
-    // TODO: Implement library screen with album/artist/song browsing
-    androidx.compose.material3.Text("Library Screen - To be implemented")
-}
-
-/**
- * Placeholder for Now Playing screen - full screen player.
- * To be implemented with playback controls and media display.
- */
-@Composable
-fun NowPlayingScreenPlaceholder() {
-    // TODO: Implement now playing screen with player controls
-    androidx.compose.material3.Text("Now Playing Screen - To be implemented")
-}
-
-/**
- * Placeholder for Playlists screen - list of all playlists.
- * To be implemented with playlist management features.
- */
-@Composable
-fun PlaylistsScreenPlaceholder() {
-    // TODO: Implement playlists screen with playlist list
-    androidx.compose.material3.Text("Playlists Screen - To be implemented")
-}
-
-/**
- * Placeholder for Playlist Detail screen - single playlist view.
- * 
- * @param playlistId The ID of the playlist to display
- */
-@Composable
-fun PlaylistDetailScreenPlaceholder(playlistId: String?) {
-    // TODO: Implement playlist detail screen with songs list
-    androidx.compose.material3.Text("Playlist Detail Screen - Playlist ID: $playlistId")
-}
-
-/**
- * Placeholder for Search screen - music search functionality.
- * 
- * @param query Optional search query parameter
- */
-@Composable
-fun SearchScreenPlaceholder(query: String?) {
-    // TODO: Implement search screen with search bar and results
-    androidx.compose.material3.Text("Search Screen - Query: $query")
-}
-
-/**
- * Placeholder for Server Setup screen - Subsonic server configuration.
- * To be implemented with server connection settings.
- */
-@Composable
-fun ServerSetupScreenPlaceholder() {
-    // TODO: Implement server setup screen with Subsonic configuration
-    androidx.compose.material3.Text("Server Setup Screen - To be implemented")
-}
-
-/**
- * Placeholder for Settings screen - app settings and preferences.
- * To be implemented with settings options.
- */
-@Composable
-fun SettingsScreenPlaceholder() {
-    // TODO: Implement settings screen with app preferences
-    androidx.compose.material3.Text("Settings Screen - To be implemented")
-}
-
-/**
- * Placeholder for Android Auto screen - car app interface.
- * To be implemented with Android Auto specific UI.
- */
-@Composable
-fun AndroidAutoScreenPlaceholder() {
-    // TODO: Implement Android Auto screen
-    androidx.compose.material3.Text("Android Auto Screen - To be implemented")
 }
