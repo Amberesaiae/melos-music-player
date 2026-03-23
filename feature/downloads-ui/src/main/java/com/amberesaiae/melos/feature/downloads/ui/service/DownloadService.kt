@@ -8,6 +8,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -64,6 +65,7 @@ class DownloadService : LifecycleService() {
     private val _serviceState = MutableStateFlow(DownloadServiceState())
     val serviceState: StateFlow<DownloadServiceState> = _serviceState.asStateFlow()
 
+    private val binder = LocalBinder()
     private var notificationManager: NotificationManager? = null
 
     override fun onCreate() {
@@ -85,9 +87,13 @@ class DownloadService : LifecycleService() {
         activeDownloads.clear()
     }
 
-    override fun onBind(intent: Intent): IBinder? {
+    override fun onBind(intent: Intent): IBinder {
         super.onBind(intent)
-        return null
+        return binder
+    }
+
+    inner class LocalBinder : Binder() {
+        fun getService(): DownloadService = this@DownloadService
     }
 
     private fun createNotificationChannel() {
@@ -153,7 +159,7 @@ class DownloadService : LifecycleService() {
                 connection.readTimeout = 30000
 
                 val contentLength = connection.contentLength
-                updateDownloadProgress(downloadItem.id, 0, contentLength)
+                updateDownloadProgress(downloadItem.id, 0, contentLength.toLong())
 
                 val outputFile = File(getDownloadDirectory(), "${downloadItem.id}.m4a")
                 FileOutputStream(outputFile).use { outputStream ->
@@ -167,7 +173,7 @@ class DownloadService : LifecycleService() {
 
                             outputStream.write(buffer, 0, bytesRead)
                             downloadedBytes += bytesRead
-                            updateDownloadProgress(downloadItem.id, downloadedBytes, contentLength)
+                            updateDownloadProgress(downloadItem.id, downloadedBytes, contentLength.toLong())
                         }
                     }
                 }
