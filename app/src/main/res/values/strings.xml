@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Melos</string>
+    <string name="playback_notification_channel_name">Playback</string>
+    <string name="playback_notification_channel_description">Melos music playback controls</string>
+</resources>
