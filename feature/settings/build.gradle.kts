@@ -1,35 +1,69 @@
 plugins {
-    alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.hilt)
-    alias(libs.plugins.ksp)
-    alias(libs.plugins.detekt)
+    alias(libs.plugins.melos.android.library)
+    alias(libs.plugins.melos.android.compose)
+    alias(libs.plugins.melos.android.hilt)
 }
 
 android {
-    namespace = "com.amberesaiae.melos.feature.settings"
-    compileSdk = 35
-    defaultConfig { minSdk = 29; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"; consumerProguardFiles("consumer-rules.pro") }
-    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
-    kotlinOptions { jvmTarget = "17"; freeCompilerArgs += listOf("-opt-in=androidx.compose.material3.ExperimentalMaterial3Api") }
-    buildFeatures { compose = true }
-    testOptions { unitTests.all { it.useJUnitPlatform() } }
+    namespace = "com.amberesaiae.melos.settings"
+
+    defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    buildFeatures {
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
+    }
 }
 
 dependencies {
-    implementation(project(":core:model"))
-    implementation(project(":core:ui"))
-    val composeBom = platform(libs.compose.bom)
-    implementation(composeBom)
-    implementation(libs.bundles.compose.ui)
-    implementation(libs.navigation.compose)
+    implementation(projects.core.data)
+    implementation(projects.core.datastore)
+    implementation(projects.core.ui)
+    
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.material.icons.extended)
+    
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
-    implementation(libs.hilt.navigation.compose)
-    implementation(libs.bundles.lifecycle)
-    implementation(libs.bundles.coroutines)
-    implementation(libs.datastore.preferences)
-    testImplementation(libs.bundles.testing.unit)
-    testRuntimeOnly(libs.junit5.engine)
+    hiltCompiler(libs.hilt.compiler)
+    
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.hilt.navigation.compose)
+    
+    implementation(libs.androidx.datastore.preferences)
+    
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.test.manifest)
 }
